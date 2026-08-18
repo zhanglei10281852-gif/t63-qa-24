@@ -93,6 +93,14 @@ func (s Service) Submit(ctx context.Context, id, actor, request string) (domain.
 			if err != nil {
 				return err
 			}
+			previous := vehicleItem
+			vehicleItem, err = vehicleItem.MarkMaintenance(s.Clock.Now())
+			if err != nil {
+				return err
+			}
+			if err := tx.SaveVehicle(ctx, vehicleItem, previous.Version); err != nil {
+				return err
+			}
 			order, err := maintenance.New(s.IDs.NewID("maint"), vehicleItem.ID, "inspection_failure", "Opened automatically from failed compliance inspection", s.Clock.Now(), s.Clock.Now().Add(7*24*time.Hour), s.Clock.Now())
 			if err != nil {
 				return err
@@ -100,7 +108,6 @@ func (s Service) Submit(ctx context.Context, id, actor, request string) (domain.
 			if err := tx.SaveMaintenance(ctx, order, 0); err != nil {
 				return err
 			}
-			// The order is visible, but the vehicle snapshot is left unchanged.
 		}
 		data, err := json.Marshal(result)
 		if err != nil {
